@@ -1,257 +1,165 @@
-/**
-* Template Name: Bethany - v4.9.0
-* Template URL: https://bootstrapmade.com/bethany-free-onepage-bootstrap-theme/
-* Author: BootstrapMade.com
-* License: https://bootstrapmade.com/license/
-*/
-(function() {
-  "use strict";
+var username = new URL(location.href).searchParams.get("username");
+var user;
 
-  /**
-   * Easy selector helper function
-   */
-  const select = (el, all = false) => {
-    el = el.trim()
-    if (all) {
-      return [...document.querySelectorAll(el)]
-    } else {
-      return document.querySelector(el)
+$(document).ready(function () {
+
+    $(function () {
+        $('[data-toggle="tooltip"]').tooltip();
+    });
+
+    getUsuario().then(function () {
+
+        $("#mi-perfil-btn").attr("href", "profile.html?username=" + username);
+
+        $("#user-cant-donada").html(user.cant_donada.toFixed(2) + "KG");
+
+        getProductos(false, "ASC");
+
+        $("#ordenar-categoria").click(ordenarproductos);
+    });
+});
+
+
+async function getUsuario() {
+
+    await $.ajax({
+        type: "GET",
+        dataType: "html",
+        url: "./ServletUsuarioPedir",
+        data: $.param({
+            username: username
+        }),
+        success: function (result) {
+            let parsedResult = JSON.parse(result);
+
+            if (parsedResult != false) {
+                user = parsedResult;
+            } else {
+                console.log("Error recuperando los datos del usuario");
+            }
+        }
+    });
+
+}
+
+
+function getProductos(ordenar, orden) {
+
+    $.ajax({
+        type: "GET",
+        dataType: "html",
+        url: "./ServletProductoListar",
+        data: $.param({
+            ordenar: ordenar,
+            orden: orden
+        }),
+        success: function (result) {
+            let parsedResult = JSON.parse(result);
+
+            if (parsedResult != false) {
+                mostrarProductos(parsedResult);
+            } else {
+                console.log("Error recuperando los datos de los productos");
+            }
+        }
+    });
+}
+
+function mostrarProductos(productos) {
+
+    let contenido = "";
+
+    $.each(productos, function (index, producto) {
+
+        producto = JSON.parse(producto);
+        console.log(producto);
+        let cant_prod;
+
+        if (producto.cant > 0) {
+            
+            cant_prod = 5;
+
+            contenido += '<tr><th scope="row">' + producto.id_producto + '</th>' +
+                    '<td>' + producto.nombre + '</td>' +
+                    '<td>' + producto.categoria + '</td>' +
+                    '<td align="center">' + producto.cant +'</td>' +
+                    '<td><input type="checkbox" name="perecedero" id="perecedero' + producto.id_producto + '" disabled ';
+            if (producto.perecedero) {
+                contenido += 'checked';
+            }
+            contenido += '></td>' +
+                    '<td>' + cant_prod + ' Kilos'+  '</td>' +
+                    '<td><button onclick="donarProducto(' + producto.id_producto + ',' + cant_prod + ');" class="btn btn-success" ';
+            contenido += '>Donar</button></td></tr>'
+
+        }
+    });
+    $("#productos-tbody").html(contenido);
+}
+
+
+function ordenarproductos() {
+
+    if ($("#icono-ordenar").hasClass("fa-sort")) {
+        getProductos(true, "ASC");
+        $("#icono-ordenar").removeClass("fa-sort");
+        $("#icono-ordenar").addClass("fa-sort-down");
+    } else if ($("#icono-ordenar").hasClass("fa-sort-down")) {
+        getProductos(true, "DESC");
+        $("#icono-ordenar").removeClass("fa-sort-down");
+        $("#icono-ordenar").addClass("fa-sort-up");
+    } else if ($("#icono-ordenar").hasClass("fa-sort-up")) {
+        getProductos(false, "ASC");
+        $("#icono-ordenar").removeClass("fa-sort-up");
+        $("#icono-ordenar").addClass("fa-sort");
     }
-  }
+}
+function donarProducto(id_producto, cant_prod) {
 
-  /**
-   * Easy event listener function
-   */
-  const on = (type, el, listener, all = false) => {
-    let selectEl = select(el, all)
-    if (selectEl) {
-      if (all) {
-        selectEl.forEach(e => e.addEventListener(type, listener))
-      } else {
-        selectEl.addEventListener(type, listener)
-      }
-    }
-  }
+    $.ajax({
+        type: "GET",
+        dataType: "html",
+        url: "./ServletProductoDonar",
+        data: $.param({
+            id_producto: id_producto,
+            username: username
 
-  /**
-   * Easy on scroll event listener 
-   */
-  const onscroll = (el, listener) => {
-    el.addEventListener('scroll', listener)
-  }
+        }),
+        success: function (result) {
+            let parsedResult = JSON.parse(result);
 
-  /**
-   * Navbar links active state on scroll
-   */
-  let navbarlinks = select('#navbar .scrollto', true)
-  const navbarlinksActive = () => {
-    let position = window.scrollY + 200
-    navbarlinks.forEach(navbarlink => {
-      if (!navbarlink.hash) return
-      let section = select(navbarlink.hash)
-      if (!section) return
-      if (position >= section.offsetTop && position <= (section.offsetTop + section.offsetHeight)) {
-        navbarlink.classList.add('active')
-      } else {
-        navbarlink.classList.remove('active')
-      }
-    })
-  }
-  window.addEventListener('load', navbarlinksActive)
-  onscroll(document, navbarlinksActive)
-  /**
-   * Scrolls to an element with header offset
-   */
-  const scrollto = (el) => {
-    let header = select('#header')
-    let offset = header.offsetHeight
+            if (parsedResult != false) {
+                sumarKGDonados(cant_prod).then(function () {
+                    location.reload();
+                })
+            } else {
+                console.log("Error en la donación del producto");
+            }
+        }
+    });
+}
 
-    let elementPos = select(el).offsetTop
-    window.scrollTo({
-      top: elementPos - offset,
-      behavior: 'smooth'
-    })
-  }
 
-  /**
-   * Toggle .header-scrolled class to #header when page is scrolled
-   */
-  let selectHeader = select('#header')
-  if (selectHeader) {
-    const headerScrolled = () => {
-      if (window.scrollY > 100) {
-        selectHeader.classList.add('header-scrolled')
-      } else {
-        selectHeader.classList.remove('header-scrolled')
-      }
-    }
-    window.addEventListener('load', headerScrolled)
-    onscroll(document, headerScrolled)
-  }
+async function sumarKGDonados(cant_prod) {
 
-  /**
-   * Back to top button
-   */
-  let backtotop = select('.back-to-top')
-  if (backtotop) {
-    const toggleBacktotop = () => {
-      if (window.scrollY > 100) {
-        backtotop.classList.add('active')
-      } else {
-        backtotop.classList.remove('active')
-      }
-    }
-    window.addEventListener('load', toggleBacktotop)
-    onscroll(document, toggleBacktotop)
-  }
+    await $.ajax({
+        type: "GET",
+        dataType: "html",
+        url: "./ServletUsuarioSumarKGDonados",
+        data: $.param({
+            username: username,
+            cant_donada: parseFloat(user.cant_donada + cant_prod)
 
-  /**
-   * Mobile nav toggle
-   */
-  on('click', '.mobile-nav-toggle', function(e) {
-    select('#navbar').classList.toggle('navbar-mobile')
-    this.classList.toggle('bi-list')
-    this.classList.toggle('bi-x')
-  })
+        }),
+        success: function (result) {
+            let parsedResult = JSON.parse(result);
+//            console.log('por aca' + parsedResult);
 
-  /**
-   * Mobile nav dropdowns activate
-   */
-  on('click', '.navbar .dropdown > a', function(e) {
-    if (select('#navbar').classList.contains('navbar-mobile')) {
-      e.preventDefault()
-      this.nextElementSibling.classList.toggle('dropdown-active')
-    }
-  }, true)
-
-  /**
-   * Scrool with ofset on links with a class name .scrollto
-   */
-  on('click', '.scrollto', function(e) {
-    if (select(this.hash)) {
-      e.preventDefault()
-
-      let navbar = select('#navbar')
-      if (navbar.classList.contains('navbar-mobile')) {
-        navbar.classList.remove('navbar-mobile')
-        let navbarToggle = select('.mobile-nav-toggle')
-        navbarToggle.classList.toggle('bi-list')
-        navbarToggle.classList.toggle('bi-x')
-      }
-      scrollto(this.hash)
-    }
-  }, true)
-
-  /**
-   * Scroll with ofset on page load with hash links in the url
-   */
-  window.addEventListener('load', () => {
-    if (window.location.hash) {
-      if (select(window.location.hash)) {
-        scrollto(window.location.hash)
-      }
-    }
-  });
-
-  /**
-   * Porfolio isotope and filter
-   */
-  window.addEventListener('load', () => {
-    let portfolioContainer = select('.portfolio-container');
-    if (portfolioContainer) {
-      let portfolioIsotope = new Isotope(portfolioContainer, {
-        itemSelector: '.portfolio-item',
-        layoutMode: 'fitRows'
-      });
-
-      let portfolioFilters = select('#portfolio-flters li', true);
-
-      on('click', '#portfolio-flters li', function(e) {
-        e.preventDefault();
-        portfolioFilters.forEach(function(el) {
-          el.classList.remove('filter-active');
-        });
-        this.classList.add('filter-active');
-
-        portfolioIsotope.arrange({
-          filter: this.getAttribute('data-filter')
-        });
-        portfolioIsotope.on('arrangeComplete', function() {
-          AOS.refresh()
-        });
-      }, true);
-    }
-
-  });
-
-  /**
-   * Initiate portfolio lightbox 
-   */
-  const portfolioLightbox = GLightbox({
-    selector: '.portfolio-lightbox'
-  });
-
-  /**
-   * Portfolio details slider
-   */
-  new Swiper('.portfolio-details-slider', {
-    speed: 400,
-    loop: true,
-    autoplay: {
-      delay: 5000,
-      disableOnInteraction: false
-    },
-    pagination: {
-      el: '.swiper-pagination',
-      type: 'bullets',
-      clickable: true
-    }
-  });
-
-  /**
-   * Testimonials slider
-   */
-  new Swiper('.testimonials-slider', {
-    speed: 600,
-    loop: true,
-    autoplay: {
-      delay: 5000,
-      disableOnInteraction: false
-    },
-    slidesPerView: 'auto',
-    pagination: {
-      el: '.swiper-pagination',
-      type: 'bullets',
-      clickable: true
-    },
-    breakpoints: {
-      320: {
-        slidesPerView: 1,
-        spaceBetween: 20
-      },
-
-      1200: {
-        slidesPerView: 2,
-        spaceBetween: 20
-      }
-    }
-  });
-
-  /**
-   * Animation on scroll
-   */
-  window.addEventListener('load', () => {
-    AOS.init({
-      duration: 1000,
-      easing: 'ease-in-out',
-      once: true,
-      mirror: false
-    })
-  });
-
-  /**
-   * Initiate Pure Counter 
-   */
-  new PureCounter();
-
-})()
+            if (parsedResult != false) {
+                console.log("Cantidad donada actualizada");
+            } else {
+                console.log("Error en el proceso de donación");
+            }
+        }
+    });
+}
